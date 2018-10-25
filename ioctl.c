@@ -6,8 +6,7 @@
 #include <unistd.h>
 #include <argp.h>
 
-
-#define DEFAULT_CAP cap_from_text("cap_setfcap=eip")
+#define DEFAULT_CAP cap_from_text("CAP_SETFCAP=eip")
 
 char** str_split(char* a_str, const char a_delim);
 
@@ -18,7 +17,7 @@ const char *argp_program_bug_address =
 
 /* Program documentation. */
 static char doc[] =
-	"IOCTL user space program, this utility will help user for requesting IOCTL command to a specefic path.\nbefor using set permission for this utility as follow: \nsudo setcap cap_setfcap=eip ./ioctl";
+	"IOCTL user space program, this utility will help user for requesting IOCTL command to a specefic path.\nbefor using set permission for this utility as follow: \nsudo setcap cap_setfcap=eip ./ioctl\nFor negative argument use -- option befor argument";
 /* A description of the arguments we accept. */
 static char args_doc[] = "COMMAND PATH";
 
@@ -99,7 +98,7 @@ main (int argc, char **argv)
 	/* Parse our arguments; every option seen by parse_opt will
 	 be reflected in arguments. */
 	argp_parse (&argp, argc, argv, 0, 0, &arguments);
-	
+
 
 	int fd;
 
@@ -110,14 +109,28 @@ main (int argc, char **argv)
 
 	if ( arguments.set_cap_flag )
 	{
-
 		char buff[256];
+		cap_value_t cap_list[1];
+		cap_list[0] = CAP_SETFCAP;
 		snprintf(buff, sizeof buff, "cap_setfcap,%s", arguments.set_cap_buffer);
 		cap_t cap = cap_from_text(buff);
+		if ( cap_set_flag ( cap, CAP_EFFECTIVE, 1, cap_list, CAP_SET) ){
+			perror ("Applying CAP_SETFCAP EFFECTIVE failed.");
+			exit(EXIT_FAILURE);
+		}
+		if ( cap_set_flag ( cap, CAP_PERMITTED, 1, cap_list, CAP_SET) ){
+			perror ("Applying CAP_SETFCAP PERMITTED failed.");
+			exit(EXIT_FAILURE);
+		}
+		if ( cap_set_flag ( cap, CAP_INHERITABLE, 1, cap_list, CAP_SET) ){
+			perror ("Applying CAP_SETFCAP INHERITABLE failed.");
+			exit(EXIT_FAILURE);
+		}
 		if ( cap_set_file(*argv, cap) ){
 			perror("Applying new Capability to this file faild.");
 			exit(EXIT_FAILURE);
 		}
+		
 		execv(*argv, (char *[]){ *argv, arguments.args[0], arguments.args[1], NULL });
 	}
 
